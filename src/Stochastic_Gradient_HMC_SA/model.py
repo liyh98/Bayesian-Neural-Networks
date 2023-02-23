@@ -76,7 +76,7 @@ class BNN_cat(BaseNet):  # for categorical distributions
             self.grad_buff.pop(0)
         # Clipping to prevent explosions
         self.grad_buff.append(nn.utils.clip_grad_norm_(parameters=self.model.parameters(),
-                                                       max_norm=self.max_grad, norm_type=2))
+                                                       max_norm=self.max_grad, norm_type=2).cpu())
         if self.grad_buff[-1] >= self.max_grad:
             print(self.max_grad, self.grad_buff[-1])
             self.grad_buff.pop()
