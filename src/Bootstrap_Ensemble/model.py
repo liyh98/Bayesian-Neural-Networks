@@ -4,6 +4,7 @@ from src.base_net import *
 import torch.nn.functional as F
 import torch.nn as nn
 
+
 class Linear_2L(nn.Module):
     def __init__(self, input_dim, output_dim, n_hid):
         super(Linear_2L, self).__init__()
@@ -41,9 +42,19 @@ class Linear_2L(nn.Module):
 class Bootstrap_Net(BaseNet):
     eps = 1e-6
 
-    def __init__(self, lr=1e-3, channels_in=3, side_in=28, cuda=True, classes=10, batch_size=128, weight_decay=0, n_hid=1200):
+    def __init__(
+        self,
+        lr=1e-3,
+        channels_in=3,
+        side_in=28,
+        cuda=True,
+        classes=10,
+        batch_size=128,
+        weight_decay=0,
+        n_hid=1200,
+    ):
         super(Bootstrap_Net, self).__init__()
-        cprint('y', ' Creating Net!! ')
+        cprint("y", " Creating Net!! ")
         self.lr = lr
         self.schedule = None  # [] #[50,200,400,600]
         self.cuda = cuda
@@ -64,19 +75,26 @@ class Bootstrap_Net(BaseNet):
         #         if self.cuda:
         #             torch.cuda.manual_seed(42)
 
-        self.model = Linear_2L(input_dim=self.channels_in * self.side_in * self.side_in, output_dim=self.classes,
-                               n_hid=self.n_hid)
+        self.model = Linear_2L(
+            input_dim=self.channels_in * self.side_in * self.side_in,
+            output_dim=self.classes,
+            n_hid=self.n_hid,
+        )
         if self.cuda:
             self.model.cuda()
         #             cudnn.benchmark = True
 
-        print('    Total params: %.2fM' % (self.get_nb_parameters() / 1000000.0))
+        print("    Total params: %.2fM" % (self.get_nb_parameters() / 1000000.0))
 
     def create_opt(self):
         #         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, betas=(0.9, 0.999), eps=1e-08,
         #                                           weight_decay=0)
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=0.5,
-                                         weight_decay=self.weight_decay)
+        self.optimizer = torch.optim.SGD(
+            self.model.parameters(),
+            lr=self.lr,
+            momentum=0.5,
+            weight_decay=self.weight_decay,
+        )
 
     #         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=0.9)
     #         self.sched = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=1, gamma=10, last_epoch=-1)
@@ -87,13 +105,15 @@ class Bootstrap_Net(BaseNet):
         self.optimizer.zero_grad()
 
         out = self.model(x)
-        loss = F.cross_entropy(out, y, reduction='sum')
+        loss = F.cross_entropy(out, y, reduction="sum")
 
         loss.backward()
         self.optimizer.step()
 
         # out: (batch_size, out_channels, out_caps_dims)
-        pred = out.data.max(dim=1, keepdim=False)[1]  # get the index of the max log-probability
+        pred = out.data.max(dim=1, keepdim=False)[
+            1
+        ]  # get the index of the max log-probability
         err = pred.ne(y.data).sum()
 
         return loss.data, err
@@ -103,11 +123,13 @@ class Bootstrap_Net(BaseNet):
 
         out = self.model(x)
 
-        loss = F.cross_entropy(out, y, reduction='sum')
+        loss = F.cross_entropy(out, y, reduction="sum")
 
         probs = F.softmax(out, dim=1).data.cpu()
 
-        pred = out.data.max(dim=1, keepdim=False)[1]  # get the index of the max log-probability
+        pred = out.data.max(dim=1, keepdim=False)[
+            1
+        ]  # get the index of the max log-probability
         err = pred.ne(y.data).sum()
 
         return loss.data, err, probs
@@ -118,8 +140,7 @@ class Bootstrap_Net(BaseNet):
         state_dict = self.model.state_dict()
 
         for key in state_dict.keys():
-
-            if 'weight' in key:
+            if "weight" in key:
                 weight_mtx = state_dict[key].cpu().data
                 for weight in weight_mtx.view(-1):
                     weight_vec.append(weight)
@@ -127,7 +148,6 @@ class Bootstrap_Net(BaseNet):
         return np.array(weight_vec)
 
     def sample_eval(self, x, y, weight_set_samples, logits=True, train=False):
-
         Nsamples = len(weight_set_samples)
 
         x, y = to_variable(var=(x, y.long()), cuda=self.cuda)
@@ -143,7 +163,7 @@ class Bootstrap_Net(BaseNet):
 
         if logits:
             mean_out = out.mean(dim=0, keepdim=False)
-            loss = F.cross_entropy(mean_out, y, reduction='sum')
+            loss = F.cross_entropy(mean_out, y, reduction="sum")
             probs = F.softmax(mean_out, dim=1).data.cpu()
 
         else:
@@ -151,15 +171,16 @@ class Bootstrap_Net(BaseNet):
             probs = mean_out.data.cpu()
 
             log_mean_probs_out = torch.log(mean_out)
-            loss = F.nll_loss(log_mean_probs_out, y, reduction='sum')
+            loss = F.nll_loss(log_mean_probs_out, y, reduction="sum")
 
-        pred = mean_out.data.max(dim=1, keepdim=False)[1]  # get the index of the max log-probability
+        pred = mean_out.data.max(dim=1, keepdim=False)[
+            1
+        ]  # get the index of the max log-probability
         err = pred.ne(y.data).sum()
 
         return loss.data, err, probs
 
     def all_sample_eval(self, x, y, weight_set_samples):
-
         Nsamples = len(weight_set_samples)
 
         x, y = to_variable(var=(x, y.long()), cuda=self.cuda)
